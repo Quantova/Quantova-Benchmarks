@@ -9,6 +9,8 @@ One command clones the stack, builds it, and prints these numbers on your own ma
 Install Rust from https://rustup.rs and have git available, then run
 
 ```
+git clone https://github.com/Quantova/Quantova-Benchmarks.git
+cd Quantova-Benchmarks
 bash bench.sh
 ```
 
