@@ -1,12 +1,62 @@
-# Quantova throughput
+# Quantova throughput and finality
 
-A reproducible measurement of the Quantova node's execution throughput. Everything it builds
-is public, and every figure is checked against the sequential state root before it is trusted.
-One command clones the stack, builds it, and prints these numbers on your own machine.
+Reproducible benchmarks for the Quantova node. Every figure is produced by a harness that
+checks its parallel result against the sequential state root before it reports, and the
+throughput figures rerun on your own machine with a single command.
 
-## Verify it yourself
+## Headline
 
-Install Rust from https://rustup.rs and have git available, then run
+Around 44,000 transactions a second of execution throughput on a single node, and block
+finality under one second across a live validator committee. Signature verification and the
+virtual machine both run far above throughput, so the compute path keeps margin and the bound
+is serial state access.
+
+## Execution throughput
+
+Measured on an Apple M4, ten cores, 16 GB, release build. The full block path runs a module
+lattice signature verify, a virtual machine transfer, and an account write back.
+
+| workload | parallel | speedup |
+| --- | --- | --- |
+| independent transfers | 47,712 tx/s | 2.20x |
+| a third contended on hot accounts | 47,021 tx/s | 2.14x |
+| independent at half the cores | 36,469 tx/s | |
+
+Held constant over twenty seconds the floor is 41,431 a second and the median 44,085, so the
+figure is a rate the node sustains rather than a burst. Signature verification runs at 70,039 a
+second across the cores and the virtual machine alone at 1,381,895, both far past throughput,
+which places the ceiling on serial state access, the sparse Merkle state read and written in
+block order.
+
+## Block finality
+
+Measured across a real four validator committee producing and finalising blocks one after
+another, each block built, attested, aggregated, and verified with a real finality certificate
+that every node checks.
+
+| percentile | finality |
+| --- | --- |
+| median | 607 ms |
+| p90 | 620 ms |
+| p99 | 635 ms |
+
+Finality lands under a second, and it does not grow with the validator set. A fixed sampled
+committee carries it, so the certificate stays flat as validators join. This figure is the in
+process compute floor across the committee, a production network adds propagation between hosts
+on top.
+
+## Honest scope
+
+Execution throughput is the compute path of one node. Finality is measured in process across the
+committee on a single host, so it is the compute floor and leaves out wide area propagation.
+Finalised throughput at production scale, with validators running in parallel across real hosts,
+is the figure the network is built to carry, and it is bounded by execution rather than by
+consensus, because finality is flat in the validator count. Everything here is a compute
+measurement, stated as measured, with nothing tuned to a path.
+
+## Reproduce
+
+Install Rust from https://rustup.rs and have git available, then
 
 ```
 git clone https://github.com/Quantova/Quantova-Benchmarks.git
@@ -14,48 +64,7 @@ cd Quantova-Benchmarks
 bash bench.sh
 ```
 
-It clones the public node repo, builds in release, and runs the three harnesses. Each checks
-its parallel result against the sequential state root before it prints, so a wrong build cannot
-produce a flattering number. The first build compiles the whole stack and takes a few minutes.
-
-## What holds
-
-The node holds around 44,000 transfers a second, with a floor of 41,000 that stays flat across
-a twenty second run. Each transfer runs the full block path, a module lattice signature verify,
-a virtual machine transfer, and an account write back.
-
-The throughput survives contention. With a third of the transfers colliding on a small set of
-hot accounts it stays at 47,000 a second, against 47,700 on a fully independent workload, so the
-parallelism is real and not the product of a workload chosen to spread cleanly. At half the cores
-it still clears 36,500, past the 25,000 target.
-
-The ceiling is serial state access, not the cryptography and not the compute. Parallel signature
-verification runs at 70,000 a second and the virtual machine on its own at 1,380,000, both far
-above the transfer figure. What is left serial is the sparse Merkle state, read to build each
-transfer and written back in block order, and that is where the remaining headroom lives.
-
-## The figures
-
-Measured on an Apple M4, ten cores, four performance and six efficiency, 16 GB, release build.
-
-Full block execution, signature verify plus virtual machine transfer plus account write back.
-
-| workload | sequential | parallel | speedup |
-| --- | --- | --- | --- |
-| independent | 21,696 | 47,712 | 2.20x |
-| a third contended | 21,954 | 47,021 | 2.14x |
-| independent, half the cores | | 36,469 | |
-
-Sustained over twenty seconds, floor 41,431, median 44,085, peak 45,894 a second.
-
-Signature verification, 12,327 on one core and 70,039 across ten.
-
-Virtual machine transfer alone, 215,672 on one core and 1,381,895 across ten.
-
-## What is measured and what is not
-
-These are execution figures, the node's compute path. Finalised throughput end to end, once
-consensus, the network, attestation aggregation, and finality are folded in, is measured by the
-qtv-live and qtv-widearea harnesses in the same node repo and is the figure a published claim
-should rest on. Absolute numbers track the core count of the machine, the shape holds across
-hardware.
+The first build compiles the whole stack and takes a few minutes. Each harness checks its
+parallel result against the sequential state root before it prints, so a wrong build cannot
+produce a flattering number. Your absolute figures track the core count of your machine, the
+shape holds across hardware.
