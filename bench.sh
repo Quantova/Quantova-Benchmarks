@@ -10,11 +10,13 @@
 set -euo pipefail
 
 REPO="${QUANTOVA_CHAIN_DIR:-Quantova-Chain}"
+RELEASE="${QUANTOVA_CHAIN_RELEASE:-v0.17.1}"
 if [ ! -d "$REPO" ]; then
-  echo "cloning Quantova-Chain ..."
-  git clone https://github.com/Quantova/Quantova-Chain.git "$REPO"
+  echo "cloning Quantova-Chain $RELEASE ..."
+  git clone --quiet --branch "$RELEASE" https://github.com/Quantova/Quantova-Chain.git "$REPO"
 fi
 cd "$REPO"
+export CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true
 
 echo
 echo "=============================================================="
